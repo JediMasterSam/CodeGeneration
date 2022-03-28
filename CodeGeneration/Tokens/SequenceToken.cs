@@ -14,8 +14,10 @@ namespace CodeGeneration
         private static Token Statement(Token token) => Sequence(token, Literal(";"));
 
         private static Token Lines(params Token[] tokens) => new SequenceToken(tokens, "\n");
-        private static Token List(params Token[] tokens) => new SequenceToken(tokens, ", ");
-        private static Token Sentence(params Token[] tokens) => new SequenceToken(tokens, " ");
+        private static Token List(IReadOnlyList<Token> tokens) => new SequenceToken(tokens, ", ");
+        private static Token List(params Token[] tokens) => List((IReadOnlyList<Token>)tokens);
+        private static Token Sentence(IReadOnlyList<Token> tokens) => new SequenceToken(tokens, " ");
+        private static Token Sentence(params Token[] tokens) => Sentence((IReadOnlyList<Token>)tokens);
         private static Token Sequence(params Token[] tokens) => new SequenceToken(tokens);
         private static Token Statements(params Token[] tokens) => new SequenceToken(tokens, "; ");
 
@@ -53,7 +55,10 @@ namespace CodeGeneration
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
-                AppendTo(stringBuilder, Tokens, Separator);
+                if (!IsEmpty)
+                {
+                    AppendTo(stringBuilder, Tokens, Separator);
+                }
             }
 
             public override bool Equals(object obj)

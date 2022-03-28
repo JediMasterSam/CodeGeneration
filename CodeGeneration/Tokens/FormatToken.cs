@@ -9,9 +9,9 @@ namespace CodeGeneration
     {
         public static Token Block(params Token[] body) => new BlockToken(null, null, body);
 
-        private static Token Block(Token openingStatement, Token[] body) => new BlockToken(openingStatement, null, body);
-        private static Token Block(string name, Token parameter, Token[] body) => Block(Sentence(Literal(name), Parentheses(parameter)), body);
-        private static Token Block(Token openingStatement, Token closingStatement, Token[] body) => new BlockToken(openingStatement, closingStatement, body);
+        private static Token Block(Token openingStatement, IReadOnlyList<Token> body) => new BlockToken(openingStatement, null, body);
+        private static Token Block(string name, Token parameter, IReadOnlyList<Token> body) => Block(Sentence(Literal(name), Parentheses(parameter)), body);
+        private static Token Block(Token openingStatement, Token closingStatement, IReadOnlyList<Token> body) => new BlockToken(openingStatement, closingStatement, body);
 
         private abstract class FormatToken : Token
         {
