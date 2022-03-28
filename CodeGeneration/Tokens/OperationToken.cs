@@ -47,6 +47,10 @@ namespace CodeGeneration
                 Operands = separateOperands ? Sentence(operands) : Sequence(operands);
             }
 
+            protected override bool IsEmpty => Operands.IsEmpty;
+
+            protected override int Size => Operands.Size;
+
             private OperationType OperationType { get; }
 
             private Token Operands { get; }

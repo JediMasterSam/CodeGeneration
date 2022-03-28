@@ -3,9 +3,6 @@ using System.Collections.Generic;
 
 namespace CodeGeneration
 {
-    //TODO IsEmpty()
-    //TODO GetSize()
-    //TODO change all Token[] to IReadonlyList<Token>
     public abstract partial class Token
     {
         #region Types

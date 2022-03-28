@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -20,35 +21,39 @@ namespace CodeGeneration
 
         private sealed class SequenceToken : Token
         {
-            public SequenceToken(Token[] tokens, string separator = null)
+            public SequenceToken(IReadOnlyList<Token> tokens, string separator = null)
             {
                 if (tokens == null || tokens.Any(token => ReferenceEquals(token, null))) throw new ArgumentNullException(nameof(tokens));
+                if (separator == null) separator = string.Empty;
 
                 Tokens = tokens;
-                Separator = separator ?? string.Empty;
+                Separator = separator;
+
+                if (tokens.Count == 0)
+                {
+                    IsEmpty = true;
+                    Size = 0;
+                }
+                else
+                {
+                    var size = GetSize(tokens, separator.Length);
+
+                    IsEmpty = size == 0;
+                    Size = size;
+                }
             }
+
+            protected override bool IsEmpty { get; }
+
+            protected override int Size { get; }
 
             private string Separator { get; }
 
-            private Token[] Tokens { get; }
+            private IReadOnlyList<Token> Tokens { get; }
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
-                var appendSeparator = false;
-
-                foreach (var token in Tokens)
-                {
-                    if (appendSeparator)
-                    {
-                        stringBuilder.Append(Separator);
-                    }
-                    else
-                    {
-                        appendSeparator = true;
-                    }
-
-                    token.AppendTo(stringBuilder);
-                }
+                AppendTo(stringBuilder, Tokens, Separator);
             }
 
             public override bool Equals(object obj)

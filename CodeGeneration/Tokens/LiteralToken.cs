@@ -14,15 +14,20 @@ namespace CodeGeneration
             public LiteralToken(string value)
             {
                 Value = value ?? throw new ArgumentNullException(nameof(value));
+                IsEmpty = value.Length == 0;
             }
 
+            protected override bool IsEmpty { get; }
+
+            protected override int Size => Value.Length;
+            
             private string Value { get; }
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
                 stringBuilder.Append(Value);
             }
-
+            
             public override bool Equals(object obj)
             {
                 return ReferenceEquals(this, obj) || obj is LiteralToken other && Value.Equals(other.Value) || obj is string value && Value.Equals(value);
