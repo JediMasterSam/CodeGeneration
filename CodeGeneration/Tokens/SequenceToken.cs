@@ -9,6 +9,7 @@ namespace CodeGeneration
     {
         private static Token Braces(Token token) => Sequence(Literal("{ "), token, Literal(" }"));
         private static Token Brackets(Token token) => Sequence(Literal("["), token, Literal("]"));
+        private static Token Element(Token token) => Sequence(token, Literal(","));
         private static Token Label(Token token) => Sequence(token, Literal(":"));
         private static Token Parentheses(Token token) => Sequence(Literal("("), token, Literal(")"));
         private static Token Statement(Token token) => Sequence(token, Literal(";"));

@@ -273,8 +273,6 @@ namespace CodeGeneration
 
         #endregion
 
-        //TODO add enum
-
         #region Members
 
         public sealed class Accessor
@@ -490,17 +488,16 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Class : GenericMember
+        public abstract class TypeMember : GenericMember
         {
-            public IReadOnlyList<Constructor> Constructors { get; set; } = Array.Empty<Constructor>();
-            public IReadOnlyList<Field> Fields { get; set; } = Array.Empty<Field>();
-            public IReadOnlyList<Method> Methods { get; set; } = Array.Empty<Method>();
-            public IReadOnlyList<Property> Properties { get; set; } = Array.Empty<Property>();
-            public IReadOnlyList<Token> BaseTypes { get; set; } = Array.Empty<Token>();
+            public IReadOnlyList<Token> BaseTypes { get; set; }
             public IReadOnlyList<string> Imports { get; set; } = Array.Empty<string>();
             public string Namespace { get; set; }
-
-            protected override Token MemberType => Literal("class");
+            public virtual IReadOnlyList<Constructor> Constructors { get; set; } = Array.Empty<Constructor>();
+            public virtual IReadOnlyList<Field> Fields { get; set; } = Array.Empty<Field>();
+            public virtual IReadOnlyList<Method> Methods { get; set; } = Array.Empty<Method>();
+            public virtual IReadOnlyList<Property> Properties { get; set; } = Array.Empty<Property>();
+            public virtual IReadOnlyList<Token> Values { get; set; }
 
             internal override Token ToToken()
             {
@@ -510,25 +507,34 @@ namespace CodeGeneration
                 {
                     token = Sentence(token, Literal(":"), List(BaseTypes));
                 }
-                
-                var index = 0;
-                var categories = new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods };
-                var members = new Token[Fields.Count + Constructors.Count + Properties.Count + Methods.Count];
+
                 var imports = new Token[Imports.Count];
 
-                foreach (var category in categories)
+                for (var index = 0; index < imports.Length; index++)
                 {
-                    foreach (var member in category)
-                    {
-                        members[index++] = member.ToToken();
-                    }
+                    imports[index] = Statement(Sentence(Literal("using"), Literal(Imports[index])));
                 }
 
-                index = 0;
+                var members = new Token[Values?.Count ?? Fields.Count + Constructors.Count + Properties.Count + Methods.Count];
 
-                foreach (var import in Imports)
+                if (Values == null)
                 {
-                    imports[index++] = Statement(Sentence(Literal("using"), Literal(import)));
+                    var index = 0;
+
+                    foreach (var category in new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods })
+                    {
+                        foreach (var member in category)
+                        {
+                            members[index++] = member.ToToken();
+                        }
+                    }
+                }
+                else
+                {
+                    for (var index = 0; index < members.Length; index++)
+                    {
+                        members[index] = index != members.Length - 1 ? Element(Values[index]) : Values[index];
+                    }
                 }
 
                 return Block(Group(Group(imports), Sentence(Literal("namespace"), Literal(Namespace))), new[] { GroupWithAttributes(Block(Sentence(token, GetGenericConstraints()), members)) });
@@ -565,6 +571,30 @@ namespace CodeGeneration
                     Properties[index].Validate($"{Name} property index {index}");
                 }
             }
+        }
+
+        public sealed class Class : TypeMember
+        {
+            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a class.");
+
+            protected override Token MemberType => Literal("class");
+        }
+
+        public sealed class Struct : TypeMember
+        {
+            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a struct.");
+
+            protected override Token MemberType => Literal("struct");
+        }
+
+        public sealed class EnumMember : TypeMember
+        {
+            public override IReadOnlyList<Constructor> Constructors => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
+            public override IReadOnlyList<Field> Fields => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
+            public override IReadOnlyList<Method> Methods => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
+            public override IReadOnlyList<Property> Properties => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
+
+            protected override Token MemberType => Literal("enum");
         }
 
         #endregion

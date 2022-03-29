@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using CodeGeneration;
 using static CodeGeneration.Token;
 
 namespace Test
@@ -15,6 +16,24 @@ namespace Test
             var c = Literal("c");
             var input = Literal("input");
 
+            var temp = new EnumMember
+            {
+                Accessibility = Public(),
+                Name = "Test",
+                Namespace = "Test",
+                Attributes = new []{Literal("Flags")},
+                Imports = new []{"System"},
+                BaseTypes = new []{Type<long>()},
+                Values = new[]
+                {
+                    Literal("Default"),
+                    Literal("On"),
+                    Literal("Off")
+                }
+            };
+            
+            Console.WriteLine(temp.ToString());
+            return;
             var foobar = new Class
             {
                 Attributes = new[] { Literal("Foobar").Invoke(Literal("BindingFlags").Assign(BindingFlags.Public | BindingFlags.Static)) },
