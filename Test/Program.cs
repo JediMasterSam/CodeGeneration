@@ -9,8 +9,6 @@ namespace Test
     {
         public static void Main()
         {
-            // Console.WriteLine(Block(Block(Block(Group("a", "b")))));
-            // return;
             var a = Literal("a");
             var b = Literal("b");
             var c = Literal("c");
