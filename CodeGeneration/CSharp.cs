@@ -3,9 +3,6 @@ using System.Collections.Generic;
 
 namespace CodeGeneration
 {
-    //TODO IsEmpty()
-    //TODO GetSize()
-    //TODO change all Token[] to IReadonlyList<Token>
     public abstract partial class Token
     {
         #region Types
@@ -120,7 +117,7 @@ namespace CodeGeneration
 
         #endregion
 
-        #region Jump
+        #region Jumps
 
         public static Token Break() => Sequence(OperationType.Primary, Literal("break"));
         public static Token Continue() => Sequence(OperationType.Primary, Literal("continue"));
@@ -143,7 +140,7 @@ namespace CodeGeneration
 
         #endregion
 
-        #region Selection
+        #region Selections
 
         public static Token Else(params Token[] body) => Block(Literal("else"), body);
         public static Token ElseIf(Token condition, params Token[] body) => Block("else if", condition, body);
@@ -155,7 +152,7 @@ namespace CodeGeneration
 
         #endregion
 
-        #region Pointer
+        #region Pointers
 
         public static Token Fixed(Token pointer, params Token[] body) => Block("fixed", pointer, body);
         public static Token Lock(Token reference, params Token[] body) => Block("lock", reference, body);
@@ -276,71 +273,91 @@ namespace CodeGeneration
 
         #endregion
 
-        //TODO add enum
-
         #region Members
 
         public sealed class Accessor
         {
             public Token Accessibility { get; set; }
-            public Token[] Body { get; set; }
+            public IReadOnlyList<Token> Body { get; set; }
 
-            internal Token ToToken(string name)
+            internal static Token ToToken(Accessor accessor, string name)
             {
-                var token = ReferenceEquals(Accessibility, null) ? Literal(name) : Sentence(Accessibility, Literal(name));
-                return ReferenceEquals(Body, null) ? Statement(token) : Block(token, Body);
+                if (accessor == null) return Empty();
+                var token = ReferenceEquals(accessor.Accessibility, null) ? Literal(name) : Sentence(accessor.Accessibility, Literal(name));
+                return accessor.Body == null ? Statement(token) : Block(token, accessor.Body);
             }
         }
 
         public sealed class GenericType
         {
-            public Token[] Constraints { get; set; }
+            public IReadOnlyList<Token> Constraints { get; set; }
             public string Name { get; set; }
         }
 
-        //TODO add attributes
         public abstract class Member
         {
             public Token Accessibility { get; set; }
-            public Token[] Modifiers { get; set; }
+            public IReadOnlyList<Token> Attributes { get; set; } = Array.Empty<Token>();
+            public IReadOnlyList<Token> Modifiers { get; set; } = Array.Empty<Token>();
             public string Name { get; set; }
+
+            protected abstract Token MemberType { get; }
 
             public static implicit operator Token(Member member)
             {
-                member.Validate();
                 return member.ToToken();
             }
 
             public override string ToString()
             {
-                Validate();
                 return ToToken().ToString();
             }
 
-            internal abstract Token ToToken();
+            internal virtual Token ToToken()
+            {
+                Validate();
+                return Sentence(Accessibility, Sentence(Modifiers), MemberType, Literal(Name));
+            }
 
             internal virtual void Validate(string location = "tokenization")
             {
-                if (ReferenceEquals(Name, null)) throw new InvalidOperationException($"{location} is missing {nameof(Name)}.");
-                if (ReferenceEquals(Accessibility, null)) throw new InvalidOperationException($"{Name} at {location} is missing {nameof(Accessibility)}.");
+                Validate(Name, nameof(Name), location);
+                Validate(Accessibility, nameof(Accessibility), location);
+                Validate(Attributes, nameof(Attributes), location);
+                Validate(Modifiers, nameof(Modifiers), location);
             }
 
-            protected Token ToToken(Token type)
+            internal Token GroupWithAttributes(Token token)
             {
-                return Modifiers != null ? Sentence(Accessibility, Sentence(Modifiers), type, Literal(Name)) : Sentence(Accessibility, type, Literal(nameof(Name)));
+                var attributes = new Token[Attributes.Count];
+
+                for (var index = 0; index < attributes.Length; index++)
+                {
+                    attributes[index] = Brackets(Attributes[index]);
+                }
+
+                return Group(Group(attributes), token);
+            }
+
+            protected void Validate<T>(T value, string name, string location) where T : class
+            {
+                if (ReferenceEquals(value, null))
+                {
+                    throw new InvalidOperationException(Name != null ? $"{Name} at {location} is missing {name}" : $"{location} is missing {name}");
+                }
             }
         }
 
         public abstract class GenericMember : Member
         {
-            public GenericType[] GenericTypes { get; set; }
+            public IReadOnlyList<GenericType> GenericTypes { get; set; }
 
             protected Token GetGenericParameters()
             {
-                if (GenericTypes == null) return Literal("");
+                if (GenericTypes == null) return Empty();
 
                 var index = 0;
-                var parameters = new Token[GenericTypes.Length];
+                var parameters = new Token[GenericTypes.Count];
 
                 foreach (var genericType in GenericTypes)
                 {
@@ -352,10 +369,10 @@ namespace CodeGeneration
 
             protected Token GetGenericConstraints()
             {
-                if (GenericTypes == null) return Literal("");
+                if (GenericTypes == null) return Empty();
 
                 var index = 0;
-                var constraints = new Token[GenericTypes.Length];
+                var constraints = new Token[GenericTypes.Count];
 
                 foreach (var genericType in GenericTypes)
                 {
@@ -366,38 +383,34 @@ namespace CodeGeneration
             }
         }
 
+        public abstract class MethodBase : GenericMember
+        {
+            public IReadOnlyList<Token> Body { get; set; } = Array.Empty<Token>();
+            public IReadOnlyList<Token> Parameters { get; set; } = Array.Empty<Token>();
+
+            internal override void Validate(string location = "tokenization")
+            {
+                base.Validate(location);
+                Validate(Body, nameof(Body), location);
+                Validate(Parameters, nameof(Parameters), location);
+            }
+        }
+
         public sealed class Field : Member
         {
             public Token FieldType { get; set; }
 
+            protected override Token MemberType => FieldType;
+
             internal override Token ToToken()
             {
-                return Statement(ToToken(FieldType));
+                return GroupWithAttributes(Statement(base.ToToken()));
             }
 
             internal override void Validate(string location = "tokenization")
             {
                 base.Validate(location);
-                if (ReferenceEquals(FieldType, null)) throw new InvalidOperationException($"{Name} at {location} is missing {nameof(FieldType)}.");
-            }
-        }
-
-        //TODO add base constructor
-        public sealed class Constructor : Member
-        {
-            public Token[] Body { get; set; }
-            public Token[] Parameters { get; set; }
-
-            internal override Token ToToken()
-            {
-                return Block(Sequence(Sentence(Accessibility, Literal(Name)), Parentheses(List(Parameters))), Body);
-            }
-
-            internal override void Validate(string location = "tokenization")
-            {
-                base.Validate(location);
-                if (ReferenceEquals(Body, null)) Body = Array.Empty<Token>();
-                if (ReferenceEquals(Parameters, null)) Parameters = Array.Empty<Token>();
+                Validate(FieldType, nameof(FieldType), location);
             }
         }
 
@@ -407,112 +420,181 @@ namespace CodeGeneration
             public Accessor Set { get; set; }
             public Token PropertyType { get; set; }
 
+            protected override Token MemberType => PropertyType;
+
             internal override Token ToToken()
             {
-                var token = ToToken(PropertyType);
-                var accessors = new[] { Get?.ToToken("get") ?? Literal(""), Set?.ToToken("set") ?? Literal("") };
+                if (Get == null && Set == null)
+                {
+                    Get = Set = new Accessor();
+                }
 
-                return Get?.Body != null || Set?.Body != null ? Block(token, accessors) : Sentence(token, Braces(Sentence(accessors)));
+                var token = base.ToToken();
+                var accessors = new[] { Accessor.ToToken(Get, "get"), Accessor.ToToken(Set, "set") };
+
+                if (Get?.Body != null || Set?.Body != null)
+                {
+                    token = Block(token, accessors);
+                }
+                else
+                {
+                    token = Sentence(token, Braces(Sentence(accessors)));
+                }
+
+                return GroupWithAttributes(token);
             }
 
             internal override void Validate(string location = "tokenization")
             {
                 base.Validate(location);
-                if (ReferenceEquals(PropertyType, null)) throw new InvalidOperationException($"{Name} at {location} is missing {nameof(PropertyType)}.");
-                if (Get == null && Set == null) Get = Set = new Accessor();
+                Validate(PropertyType, nameof(PropertyType), location);
             }
         }
 
-        public sealed class Method : GenericMember
+        public sealed class Constructor : MethodBase
+        {
+            public IReadOnlyList<Token> BaseParameters { get; set; }
+
+            protected override Token MemberType => Empty();
+
+            internal override Token ToToken()
+            {
+                var token = Sequence(base.ToToken(), Parentheses(List(Parameters)));
+
+                if (BaseParameters != null)
+                {
+                    token = Sentence(token, Literal(":"), Sequence(Literal("base"), Parentheses(List(BaseParameters))));
+                }
+
+                return GroupWithAttributes(Block(token, Body));
+            }
+        }
+
+        public sealed class Method : MethodBase
         {
             public Token ReturnType { get; set; }
-            public Token[] Body { get; set; }
-            public Token[] Parameters { get; set; }
+
+            protected override Token MemberType => ReturnType;
 
             internal override Token ToToken()
             {
-                return Block(Sentence(Sequence(ToToken(ReturnType), GetGenericParameters(), Parentheses(List(Parameters))), GetGenericConstraints()), Body);
+                return GroupWithAttributes(Block(Sentence(Sequence(base.ToToken(), GetGenericParameters(), Parentheses(List(Parameters))), GetGenericConstraints()), Body));
             }
 
             internal override void Validate(string location = "tokenization")
             {
                 base.Validate(location);
-                if (ReferenceEquals(ReturnType, null)) throw new InvalidOperationException($"{Name} at {location} is missing {nameof(ReturnType)}.");
-                if (ReferenceEquals(Body, null)) Body = Array.Empty<Token>();
-                if (ReferenceEquals(Parameters, null)) Parameters = Array.Empty<Token>();
+                Validate(ReturnType, nameof(ReturnType), location);
             }
         }
 
-        //TODO add base type
-        public sealed class Class : GenericMember
+        public abstract class TypeMember : GenericMember
         {
-            public IReadOnlyList<Constructor> Constructors { get; set; }
-            public IReadOnlyList<Field> Fields { get; set; }
-            public IReadOnlyList<Method> Methods { get; set; }
-            public IReadOnlyList<Property> Properties { get; set; }
-            public IReadOnlyList<string> Imports { get; set; }
+            public IReadOnlyList<Token> BaseTypes { get; set; }
+            public IReadOnlyList<string> Imports { get; set; } = Array.Empty<string>();
             public string Namespace { get; set; }
+            public virtual IReadOnlyList<Constructor> Constructors { get; set; } = Array.Empty<Constructor>();
+            public virtual IReadOnlyList<Field> Fields { get; set; } = Array.Empty<Field>();
+            public virtual IReadOnlyList<Method> Methods { get; set; } = Array.Empty<Method>();
+            public virtual IReadOnlyList<Property> Properties { get; set; } = Array.Empty<Property>();
+            public virtual IReadOnlyList<Token> Values { get; set; }
 
             internal override Token ToToken()
             {
-                var index = 0;
-                var groups = new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods };
-                var members = new Token[Fields.Count + Constructors.Count + Properties.Count + Methods.Count];
+                var token = Sequence(base.ToToken(), GetGenericParameters());
+
+                if (BaseTypes != null)
+                {
+                    token = Sentence(token, Literal(":"), List(BaseTypes));
+                }
+
                 var imports = new Token[Imports.Count];
 
-                foreach (var group in groups)
+                for (var index = 0; index < imports.Length; index++)
                 {
-                    if (group == null) continue;
+                    imports[index] = Statement(Sentence(Literal("using"), Literal(Imports[index])));
+                }
 
-                    foreach (var member in group)
+                var members = new Token[Values?.Count ?? Fields.Count + Constructors.Count + Properties.Count + Methods.Count];
+
+                if (Values == null)
+                {
+                    var index = 0;
+
+                    foreach (var category in new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods })
                     {
-                        members[index++] = member.ToToken();
+                        foreach (var member in category)
+                        {
+                            members[index++] = member.ToToken();
+                        }
+                    }
+                }
+                else
+                {
+                    for (var index = 0; index < members.Length; index++)
+                    {
+                        members[index] = index != members.Length - 1 ? Element(Values[index]) : Values[index];
                     }
                 }
 
-                index = 0;
-
-                foreach (var import in Imports)
-                {
-                    imports[index++] = Statement(Sentence(Literal("using"), Literal(import)));
-                }
-
-                var @namespace = Sentence(Literal("namespace"), Literal(Namespace));
-                var token = imports.Length != 0 ? Lines(Lines(imports), @namespace) : @namespace;
-
-                return Block(token, new[] { Block(Sentence(Sequence(ToToken(Literal("class")), GetGenericConstraints()), GetGenericConstraints()), members) });
+                return Block(Group(Group(imports), Sentence(Literal("namespace"), Literal(Namespace))), new[] { GroupWithAttributes(Block(Sentence(token, GetGenericConstraints()), members)) });
             }
 
             internal override void Validate(string location = "tokenization")
             {
                 base.Validate(location);
-                if (ReferenceEquals(Namespace, null)) throw new InvalidOperationException($"{Name} at {location} is missing {nameof(Namespace)}.");
-                if (ReferenceEquals(Constructors, null)) Constructors = Array.Empty<Constructor>();
-                if (ReferenceEquals(Fields, null)) Fields = Array.Empty<Field>();
-                if (ReferenceEquals(Methods, null)) Methods = Array.Empty<Method>();
-                if (ReferenceEquals(Properties, null)) Properties = Array.Empty<Property>();
-                if (ReferenceEquals(Imports, null)) Imports = Array.Empty<string>();
+                Validate(Constructors, nameof(Constructors), location);
+                Validate(Fields, nameof(Fields), location);
+                Validate(Methods, nameof(Methods), location);
+                Validate(Properties, nameof(Properties), location);
+                Validate(Imports, nameof(Imports), location);
+                Validate(Namespace, nameof(Namespace), location);
 
                 for (var index = 0; index < Constructors.Count; index++)
                 {
-                    Constructors[index].Validate($"constructor index {index}");
+                    Constructors[index].Name = Name;
+                    Constructors[index].Validate($"{Name} constructor index {index}");
                 }
 
                 for (var index = 0; index < Fields.Count; index++)
                 {
-                    Fields[index].Validate($"fields index {index}");
+                    Fields[index].Validate($"{Name} fields index {index}");
                 }
 
                 for (var index = 0; index < Methods.Count; index++)
                 {
-                    Methods[index].Validate($"method index {index}");
+                    Methods[index].Validate($"{Name} method index {index}");
                 }
 
                 for (var index = 0; index < Properties.Count; index++)
                 {
-                    Properties[index].Validate($"property index {index}");
+                    Properties[index].Validate($"{Name} property index {index}");
                 }
             }
+        }
+
+        public sealed class Class : TypeMember
+        {
+            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a class.");
+
+            protected override Token MemberType => Literal("class");
+        }
+
+        public sealed class Struct : TypeMember
+        {
+            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a struct.");
+
+            protected override Token MemberType => Literal("struct");
+        }
+
+        public sealed class EnumMember : TypeMember
+        {
+            public override IReadOnlyList<Constructor> Constructors => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
+            public override IReadOnlyList<Field> Fields => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
+            public override IReadOnlyList<Method> Methods => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
+            public override IReadOnlyList<Property> Properties => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
+
+            protected override Token MemberType => Literal("enum");
         }
 
         #endregion

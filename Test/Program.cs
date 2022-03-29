@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
+using CodeGeneration;
 using static CodeGeneration.Token;
 
 namespace Test
@@ -14,9 +16,37 @@ namespace Test
             var c = Literal("c");
             var input = Literal("input");
 
+            var temp = new EnumMember
+            {
+                Accessibility = Public(),
+                Name = "Test",
+                Namespace = "Test",
+                Attributes = new []{Literal("Flags")},
+                Imports = new []{"System"},
+                BaseTypes = new []{Type<long>()},
+                Values = new[]
+                {
+                    Literal("Default"),
+                    Literal("On"),
+                    Literal("Off")
+                }
+            };
+            
+            Console.WriteLine(temp.ToString());
+            return;
             var foobar = new Class
             {
-                Imports = new []{"System", "System.Collections"},
+                Attributes = new[] { Literal("Foobar").Invoke(Literal("BindingFlags").Assign(BindingFlags.Public | BindingFlags.Static)) },
+                BaseTypes = new[] { Type<IEnumerable>(), Type<IComparable>() },
+                GenericTypes = new[]
+                {
+                    new GenericType
+                    {
+                        Name = "TEnumerable",
+                        Constraints = new[] { Type<IEnumerable>() }
+                    }
+                },
+                Imports = new[] { "System", "System.Collections" },
                 Accessibility = Public(),
                 Name = "Foobar",
                 Namespace = "Test",
@@ -24,6 +54,7 @@ namespace Test
                 {
                     new Field
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Private(),
                         Name = "_name",
                         FieldType = Type<string>()
@@ -33,6 +64,7 @@ namespace Test
                 {
                     new Property
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Name",
                         PropertyType = Type<string>(),
@@ -51,10 +83,20 @@ namespace Test
                         PropertyType = Type<int>()
                     }
                 },
+                Constructors = new[]
+                {
+                    new Constructor
+                    {
+                        Accessibility = Public(),
+                        Parameters = new []{Parameter<string>("name")},
+                        BaseParameters = new[]{Literal("name")}
+                    }
+                },
                 Methods = new[]
                 {
                     new Method
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Foobar",
                         Modifiers = new[] { Static() },

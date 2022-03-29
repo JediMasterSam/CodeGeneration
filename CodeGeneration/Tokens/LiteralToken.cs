@@ -5,6 +5,7 @@ namespace CodeGeneration
 {
     public partial class Token
     {
+        public static Token Empty() => Literal(string.Empty);
         public static Token Literal(string value) => new LiteralToken(value);
         public static Token Type(Type type) => new LiteralToken(type.ToPrintable());
         public static Token Type<T>() => Type(typeof(T));
@@ -14,13 +15,21 @@ namespace CodeGeneration
             public LiteralToken(string value)
             {
                 Value = value ?? throw new ArgumentNullException(nameof(value));
+                IsEmpty = value.Length == 0;
             }
+
+            protected override bool IsEmpty { get; }
+
+            protected override int Size => Value.Length;
 
             private string Value { get; }
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
-                stringBuilder.Append(Value);
+                if (!IsEmpty)
+                {
+                    stringBuilder.Append(Value);
+                }
             }
 
             public override bool Equals(object obj)

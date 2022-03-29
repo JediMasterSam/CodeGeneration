@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -6,11 +7,12 @@ namespace CodeGeneration
 {
     public partial class Token
     {
-        public static Token Block(params Token[] body) => new BlockToken(null, null, body);
+        public static Token Block(params Token[] tokens) => Block(Empty(), Empty(), tokens);
+        public static Token Group(params Token[] tokens) => new GroupToken(tokens);
         
-        private static Token Block(Token openingStatement, Token[] body) => new BlockToken(openingStatement, null, body);
-        private static Token Block(string name, Token parameter, Token[] body) => Block(Sentence(Literal(name), Parentheses(parameter)), body);
-        private static Token Block(Token openingStatement, Token closingStatement, Token[] body) => new BlockToken(openingStatement, closingStatement, body);
+        private static Token Block(Token openingStatement, IReadOnlyList<Token> body) => Block(openingStatement, Empty(), body); 
+        private static Token Block(string name, Token parameter, IReadOnlyList<Token> body) => Block(Sentence(Literal(name), Parentheses(parameter)), body);
+        private static Token Block(Token openingStatement, Token closingStatement, IReadOnlyList<Token> tokens) => Group(openingStatement, Literal("{"), new GroupToken(tokens).Indent(), Sentence(Literal("}"), closingStatement));
 
         private abstract class FormatToken : Token
         {
@@ -21,9 +23,14 @@ namespace CodeGeneration
         {
             public LineToken(Token token, int offset = 0)
             {
-                Token = token ?? throw new ArgumentNullException(nameof(token));
+                Token = token is OperationToken ? Statement(token) : token ?? throw new ArgumentNullException(nameof(token));
                 Offset = offset;
+                Size = token.IsEmpty ? 0 : offset + token.Size;
             }
+
+            protected override bool IsEmpty => Token.IsEmpty;
+
+            protected override int Size { get; }
 
             private Token Token { get; }
 
@@ -31,7 +38,10 @@ namespace CodeGeneration
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
-                stringBuilder.Append(' ', Offset).AppendToken(Token);
+                if (!IsEmpty)
+                {
+                    stringBuilder.Append(' ', Offset).AppendToken(Token);
+                }
             }
 
             public override FormatToken Indent()
@@ -50,106 +60,71 @@ namespace CodeGeneration
             }
         }
 
-        private sealed class BlockToken : FormatToken
+        private sealed class GroupToken : FormatToken
         {
-            public BlockToken(Token openingStatement, Token closingStatement, Token[] body)
+            public GroupToken(IReadOnlyList<Token> tokens)
             {
-                if (body == null) throw new ArgumentNullException(nameof(body));
+                if (tokens == null) throw new ArgumentNullException(nameof(tokens));
 
-                var hasOpeningStatement = !ReferenceEquals(openingStatement, null);
-                var offset = hasOpeningStatement ? 2 : 1;
-                var buffer = new FormatToken[body.Length + 2 + (hasOpeningStatement ? 1 : 0)];
+                var buffer = new FormatToken[tokens.Count];
 
-                if (hasOpeningStatement)
+                for (var index = 0; index < buffer.Length; index++)
                 {
-                    buffer[0] = new LineToken(openingStatement);
-                    buffer[1] = new LineToken(Literal("{"));
-                }
-                else
-                {
-                    buffer[0] = new LineToken(Literal("{"));
+                    buffer[index] = tokens[index] is FormatToken token ? token : new LineToken(tokens[index]);
                 }
 
-                if (!ReferenceEquals(closingStatement, null))
-                {
-                    buffer[buffer.Length - 1] = new LineToken(Sentence(Literal("}"), closingStatement));
-                }
-                else
-                {
-                    buffer[buffer.Length - 1] = new LineToken(Literal("}"));
-                }
+                var size = GetSize(buffer);
 
-                for (var index = 0; index < body.Length; index++)
-                {
-                    switch (body[index])
-                    {
-                        case FormatToken other:
-                        {
-                            buffer[index + offset] = other.Indent();
-                            break;
-                        }
-                        case OperationToken operation:
-                        {
-                            buffer[index + offset] = new LineToken(Statement(operation)).Indent();
-                            break;
-                        }
-                        default:
-                        {
-                            buffer[index + offset] = new LineToken(body[index]).Indent();
-                            break;
-                        }
-                    }
-                }
-
-                Body = buffer;
+                IsEmpty = size == 0;
+                Size = size;
+                Tokens = buffer;
             }
 
-            private BlockToken(FormatToken[] body)
+            private GroupToken(IReadOnlyList<FormatToken> tokens)
             {
-                Body = body ?? throw new ArgumentNullException(nameof(body));
+                var size = GetSize(tokens);
+
+                IsEmpty = size == 0;
+                Size = size;
+                Tokens = tokens;
             }
 
-            private FormatToken[] Body { get; }
+            protected override bool IsEmpty { get; }
+
+            protected override int Size { get; }
+
+            private IReadOnlyList<FormatToken> Tokens { get; }
 
             internal override void AppendTo(StringBuilder stringBuilder)
             {
-                var appendLine = false;
-
-                foreach (var token in Body)
-                {
-                    if (appendLine)
-                    {
-                        stringBuilder.AppendLine();
-                    }
-                    else
-                    {
-                        appendLine = true;
-                    }
-
-                    token.AppendTo(stringBuilder);
-                }
+                AppendTo(stringBuilder, Tokens, "\n");
             }
 
             public override FormatToken Indent()
             {
-                var body = new FormatToken[Body.Length];
+                var tokens = new FormatToken[Tokens.Count];
 
-                for (var index = 0; index < body.Length; index++)
+                for (var index = 0; index < tokens.Length; index++)
                 {
-                    body[index] = Body[index].Indent();
+                    tokens[index] = Tokens[index].Indent();
                 }
 
-                return new BlockToken(body);
+                return new GroupToken(tokens);
             }
 
             public override bool Equals(object obj)
             {
-                return ReferenceEquals(this, obj) || obj is BlockToken other && Body.SequenceEqual(other.Body);
+                return ReferenceEquals(this, obj) || obj is GroupToken other && Tokens.SequenceEqual(other.Tokens);
             }
 
             public override int GetHashCode()
             {
-                return Body.GetHashCode();
+                return Tokens.GetHashCode();
+            }
+
+            private static int GetSize(IEnumerable<FormatToken> body)
+            {
+                return GetSize(body, 1);
             }
         }
     }
