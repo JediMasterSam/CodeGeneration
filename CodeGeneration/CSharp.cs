@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 
 namespace CodeGeneration
 {
+    [PublicAPI]
     public abstract partial class Token
     {
         #region Types
@@ -273,14 +275,15 @@ namespace CodeGeneration
 
         #endregion
 
-        #region Members
+        #region Templates
 
-        public sealed class Accessor
+        [PublicAPI]
+        public sealed class AccessorTemplate
         {
             public Token Accessibility { get; set; }
             public IReadOnlyList<Token> Body { get; set; }
 
-            internal static Token ToToken(Accessor accessor, string name)
+            internal static Token ToToken(AccessorTemplate accessor, string name)
             {
                 if (accessor == null) return Empty();
                 var token = ReferenceEquals(accessor.Accessibility, null) ? Literal(name) : Sentence(accessor.Accessibility, Literal(name));
@@ -288,13 +291,14 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class GenericType
+        [PublicAPI]
+        public sealed class GenericTypeTemplate
         {
             public IReadOnlyList<Token> Constraints { get; set; }
             public string Name { get; set; }
         }
 
-        public abstract class Member
+        public abstract class MemberTemplate
         {
             public Token Accessibility { get; set; }
             public IReadOnlyList<Token> Attributes { get; set; } = Array.Empty<Token>();
@@ -303,9 +307,9 @@ namespace CodeGeneration
 
             protected abstract Token MemberType { get; }
 
-            public static implicit operator Token(Member member)
+            public static implicit operator Token(MemberTemplate memberTemplate)
             {
-                return member.ToToken();
+                return memberTemplate.ToToken();
             }
 
             public override string ToString()
@@ -348,9 +352,9 @@ namespace CodeGeneration
             }
         }
 
-        public abstract class GenericMember : Member
+        public abstract class GenericMemberTemplate : MemberTemplate
         {
-            public IReadOnlyList<GenericType> GenericTypes { get; set; }
+            public IReadOnlyList<GenericTypeTemplate> GenericTypes { get; set; }
 
             protected Token GetGenericParameters()
             {
@@ -383,7 +387,7 @@ namespace CodeGeneration
             }
         }
 
-        public abstract class MethodBase : GenericMember
+        public abstract class MethodBaseTemplate : GenericMemberTemplate
         {
             public IReadOnlyList<Token> Body { get; set; } = Array.Empty<Token>();
             public IReadOnlyList<Token> Parameters { get; set; } = Array.Empty<Token>();
@@ -396,7 +400,8 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Field : Member
+        [PublicAPI]
+        public sealed class FieldTemplate : MemberTemplate
         {
             public Token FieldType { get; set; }
 
@@ -414,10 +419,11 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Property : Member
+        [PublicAPI]
+        public sealed class PropertyTemplate : MemberTemplate
         {
-            public Accessor Get { get; set; }
-            public Accessor Set { get; set; }
+            public AccessorTemplate Get { get; set; }
+            public AccessorTemplate Set { get; set; }
             public Token PropertyType { get; set; }
 
             protected override Token MemberType => PropertyType;
@@ -426,11 +432,11 @@ namespace CodeGeneration
             {
                 if (Get == null && Set == null)
                 {
-                    Get = Set = new Accessor();
+                    Get = Set = new AccessorTemplate();
                 }
 
                 var token = base.ToToken();
-                var accessors = new[] { Accessor.ToToken(Get, "get"), Accessor.ToToken(Set, "set") };
+                var accessors = new[] { AccessorTemplate.ToToken(Get, "get"), AccessorTemplate.ToToken(Set, "set") };
 
                 if (Get?.Body != null || Set?.Body != null)
                 {
@@ -451,7 +457,8 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Constructor : MethodBase
+        [PublicAPI]
+        public sealed class ConstructorTemplate : MethodBaseTemplate
         {
             public IReadOnlyList<Token> BaseParameters { get; set; }
 
@@ -470,7 +477,8 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Method : MethodBase
+        [PublicAPI]
+        public sealed class MethodTemplate : MethodBaseTemplate
         {
             public Token ReturnType { get; set; }
 
@@ -488,15 +496,15 @@ namespace CodeGeneration
             }
         }
 
-        public abstract class TypeMember : GenericMember
+        public abstract class TypeTemplate : GenericMemberTemplate
         {
             public IReadOnlyList<Token> BaseTypes { get; set; }
             public IReadOnlyList<string> Imports { get; set; } = Array.Empty<string>();
             public string Namespace { get; set; }
-            public virtual IReadOnlyList<Constructor> Constructors { get; set; } = Array.Empty<Constructor>();
-            public virtual IReadOnlyList<Field> Fields { get; set; } = Array.Empty<Field>();
-            public virtual IReadOnlyList<Method> Methods { get; set; } = Array.Empty<Method>();
-            public virtual IReadOnlyList<Property> Properties { get; set; } = Array.Empty<Property>();
+            public virtual IReadOnlyList<ConstructorTemplate> Constructors { get; set; } = Array.Empty<ConstructorTemplate>();
+            public virtual IReadOnlyList<FieldTemplate> Fields { get; set; } = Array.Empty<FieldTemplate>();
+            public virtual IReadOnlyList<MethodTemplate> Methods { get; set; } = Array.Empty<MethodTemplate>();
+            public virtual IReadOnlyList<PropertyTemplate> Properties { get; set; } = Array.Empty<PropertyTemplate>();
             public virtual IReadOnlyList<Token> Values { get; set; }
 
             internal override Token ToToken()
@@ -521,7 +529,7 @@ namespace CodeGeneration
                 {
                     var index = 0;
 
-                    foreach (var category in new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods })
+                    foreach (var category in new IEnumerable<MemberTemplate>[] { Fields, Constructors, Properties, Methods })
                     {
                         foreach (var member in category)
                         {
@@ -573,26 +581,29 @@ namespace CodeGeneration
             }
         }
 
-        public sealed class Class : TypeMember
+        [PublicAPI]
+        public sealed class ClassTemplate : TypeTemplate
         {
             public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a class.");
 
             protected override Token MemberType => Literal("class");
         }
 
-        public sealed class Struct : TypeMember
+        [PublicAPI]
+        public sealed class StructTemplate : TypeTemplate
         {
             public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a struct.");
 
             protected override Token MemberType => Literal("struct");
         }
 
-        public sealed class EnumMember : TypeMember
+        [PublicAPI]
+        public sealed class EnumTemplate : TypeTemplate
         {
-            public override IReadOnlyList<Constructor> Constructors => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
-            public override IReadOnlyList<Field> Fields => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
-            public override IReadOnlyList<Method> Methods => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
-            public override IReadOnlyList<Property> Properties => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
+            public override IReadOnlyList<ConstructorTemplate> Constructors => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
+            public override IReadOnlyList<FieldTemplate> Fields => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
+            public override IReadOnlyList<MethodTemplate> Methods => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
+            public override IReadOnlyList<PropertyTemplate> Properties => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
 
             protected override Token MemberType => Literal("enum");
         }

@@ -16,7 +16,7 @@ namespace Test
             var c = Literal("c");
             var input = Literal("input");
 
-            var temp = new EnumMember
+            var temp = new EnumTemplate
             {
                 Accessibility = Public(),
                 Name = "Test",
@@ -33,14 +33,14 @@ namespace Test
             };
             
             Console.WriteLine(temp.ToString());
-            return;
-            var foobar = new Class
+            
+            var foobar = new ClassTemplate
             {
                 Attributes = new[] { Literal("Foobar").Invoke(Literal("BindingFlags").Assign(BindingFlags.Public | BindingFlags.Static)) },
                 BaseTypes = new[] { Type<IEnumerable>(), Type<IComparable>() },
                 GenericTypes = new[]
                 {
-                    new GenericType
+                    new GenericTypeTemplate
                     {
                         Name = "TEnumerable",
                         Constraints = new[] { Type<IEnumerable>() }
@@ -52,7 +52,7 @@ namespace Test
                 Namespace = "Test",
                 Fields = new[]
                 {
-                    new Field
+                    new FieldTemplate
                     {
                         Attributes = new[] { Literal("Foobar") },
                         Accessibility = Private(),
@@ -62,13 +62,13 @@ namespace Test
                 },
                 Properties = new[]
                 {
-                    new Property
+                    new PropertyTemplate
                     {
                         Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Name",
                         PropertyType = Type<string>(),
-                        Get = new Accessor
+                        Get = new AccessorTemplate
                         {
                             Body = new[]
                             {
@@ -76,7 +76,7 @@ namespace Test
                             }
                         }
                     },
-                    new Property
+                    new PropertyTemplate
                     {
                         Accessibility = Internal(),
                         Name = "Count",
@@ -85,7 +85,7 @@ namespace Test
                 },
                 Constructors = new[]
                 {
-                    new Constructor
+                    new ConstructorTemplate
                     {
                         Accessibility = Public(),
                         Parameters = new []{Parameter<string>("name")},
@@ -94,13 +94,13 @@ namespace Test
                 },
                 Methods = new[]
                 {
-                    new Method
+                    new MethodTemplate
                     {
                         Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Foobar",
                         Modifiers = new[] { Static() },
-                        GenericTypes = new[] { new GenericType { Name = "T", Constraints = new[] { Type<IList>() } } },
+                        GenericTypes = new[] { new GenericTypeTemplate { Name = "T", Constraints = new[] { Type<IList>() } } },
                         ReturnType = Void(),
                         Parameters = new[] { Parameter<int>(input) },
                         Body = new[]
