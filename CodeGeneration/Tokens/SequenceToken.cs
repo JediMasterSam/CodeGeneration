@@ -13,9 +13,9 @@ namespace CodeGeneration
         private static Token Parentheses(Token token) => Sequence(Literal("("), token, Literal(")"));
         private static Token Statement(Token token) => Sequence(token, Literal(";"));
 
-        private static Token Lines(params Token[] tokens) => new SequenceToken(tokens, "\n");
+        public static Token List(params Token[] tokens) => List((IReadOnlyList<Token>)tokens);
+
         private static Token List(IReadOnlyList<Token> tokens) => new SequenceToken(tokens, ", ");
-        private static Token List(params Token[] tokens) => List((IReadOnlyList<Token>)tokens);
         private static Token Sentence(IReadOnlyList<Token> tokens) => new SequenceToken(tokens, " ");
         private static Token Sentence(params Token[] tokens) => Sentence((IReadOnlyList<Token>)tokens);
         private static Token Sequence(params Token[] tokens) => new SequenceToken(tokens);

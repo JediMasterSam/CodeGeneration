@@ -453,14 +453,22 @@ namespace CodeGeneration
             }
         }
 
-        //TODO add base constructor
         public sealed class Constructor : MethodBase
         {
+            public IReadOnlyList<Token> BaseParameters { get; set; }
+
             protected override Token MemberType => Empty();
 
             internal override Token ToToken()
             {
-                return GroupWithAttributes(Block(Sequence(base.ToToken(), Parentheses(List(Parameters))), Body));
+                var token = Sequence(base.ToToken(), Parentheses(List(Parameters)));
+
+                if (BaseParameters != null)
+                {
+                    token = Sentence(token, Literal(":"), Sequence(Literal("base"), Parentheses(List(BaseParameters))));
+                }
+
+                return GroupWithAttributes(Block(token, Body));
             }
         }
 
@@ -482,13 +490,13 @@ namespace CodeGeneration
             }
         }
 
-        //TODO add base type
         public sealed class Class : GenericMember
         {
             public IReadOnlyList<Constructor> Constructors { get; set; } = Array.Empty<Constructor>();
             public IReadOnlyList<Field> Fields { get; set; } = Array.Empty<Field>();
             public IReadOnlyList<Method> Methods { get; set; } = Array.Empty<Method>();
             public IReadOnlyList<Property> Properties { get; set; } = Array.Empty<Property>();
+            public IReadOnlyList<Token> BaseTypes { get; set; } = Array.Empty<Token>();
             public IReadOnlyList<string> Imports { get; set; } = Array.Empty<string>();
             public string Namespace { get; set; }
 
@@ -496,16 +504,21 @@ namespace CodeGeneration
 
             internal override Token ToToken()
             {
+                var token = Sequence(base.ToToken(), GetGenericParameters());
+
+                if (BaseTypes != null)
+                {
+                    token = Sentence(token, Literal(":"), List(BaseTypes));
+                }
+                
                 var index = 0;
-                var groups = new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods };
+                var categories = new IEnumerable<Member>[] { Fields, Constructors, Properties, Methods };
                 var members = new Token[Fields.Count + Constructors.Count + Properties.Count + Methods.Count];
                 var imports = new Token[Imports.Count];
 
-                foreach (var group in groups)
+                foreach (var category in categories)
                 {
-                    if (group == null) continue;
-
-                    foreach (var member in group)
+                    foreach (var member in category)
                     {
                         members[index++] = member.ToToken();
                     }
@@ -518,10 +531,7 @@ namespace CodeGeneration
                     imports[index++] = Statement(Sentence(Literal("using"), Literal(import)));
                 }
 
-                var @namespace = Sentence(Literal("namespace"), Literal(Namespace));
-                var token = imports.Length != 0 ? Lines(Lines(imports), @namespace) : @namespace;
-
-                return Block(token, new[] { GroupWithAttributes(Block(Sentence(Sequence(base.ToToken(), GetGenericConstraints()), GetGenericConstraints()), members)) });
+                return Block(Group(Group(imports), Sentence(Literal("namespace"), Literal(Namespace))), new[] { GroupWithAttributes(Block(Sentence(token, GetGenericConstraints()), members)) });
             }
 
             internal override void Validate(string location = "tokenization")
@@ -536,6 +546,7 @@ namespace CodeGeneration
 
                 for (var index = 0; index < Constructors.Count; index++)
                 {
+                    Constructors[index].Name = Name;
                     Constructors[index].Validate($"{Name} constructor index {index}");
                 }
 

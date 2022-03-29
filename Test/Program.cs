@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using static CodeGeneration.Token;
 
 namespace Test
@@ -16,7 +17,16 @@ namespace Test
 
             var foobar = new Class
             {
-                Attributes = new[] { Literal("Foobar") },
+                Attributes = new[] { Literal("Foobar").Invoke(Literal("BindingFlags").Assign(BindingFlags.Public | BindingFlags.Static)) },
+                BaseTypes = new[] { Type<IEnumerable>(), Type<IComparable>() },
+                GenericTypes = new[]
+                {
+                    new GenericType
+                    {
+                        Name = "TEnumerable",
+                        Constraints = new[] { Type<IEnumerable>() }
+                    }
+                },
                 Imports = new[] { "System", "System.Collections" },
                 Accessibility = Public(),
                 Name = "Foobar",
@@ -52,6 +62,15 @@ namespace Test
                         Accessibility = Internal(),
                         Name = "Count",
                         PropertyType = Type<int>()
+                    }
+                },
+                Constructors = new[]
+                {
+                    new Constructor
+                    {
+                        Accessibility = Public(),
+                        Parameters = new []{Parameter<string>("name")},
+                        BaseParameters = new[]{Literal("name")}
                     }
                 },
                 Methods = new[]
