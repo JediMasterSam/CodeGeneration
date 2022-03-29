@@ -23,7 +23,7 @@ namespace CodeGeneration
         {
             public LineToken(Token token, int offset = 0)
             {
-                Token = token ?? throw new ArgumentNullException(nameof(token));
+                Token = token is OperationToken ? Statement(token) : token ?? throw new ArgumentNullException(nameof(token));
                 Offset = offset;
                 Size = token.IsEmpty ? 0 : offset + token.Size;
             }
