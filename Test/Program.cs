@@ -26,9 +26,9 @@ namespace Test
                 BaseTypes = new []{Type<long>()},
                 Values = new[]
                 {
-                    Literal("Default"),
-                    Literal("On"),
-                    Literal("Off")
+                    Literal("Default").Assign(0),
+                    Literal("On").Assign(1),
+                    Literal("Off").Assign(2)
                 }
             };
             

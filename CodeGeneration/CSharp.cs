@@ -551,12 +551,15 @@ namespace CodeGeneration
             internal override void Validate(string location = "tokenization")
             {
                 base.Validate(location);
+                Validate(Imports, nameof(Imports), location);
+                Validate(Namespace, nameof(Namespace), location);
+
+                if (Values != null) return;
+
                 Validate(Constructors, nameof(Constructors), location);
                 Validate(Fields, nameof(Fields), location);
                 Validate(Methods, nameof(Methods), location);
                 Validate(Properties, nameof(Properties), location);
-                Validate(Imports, nameof(Imports), location);
-                Validate(Namespace, nameof(Namespace), location);
 
                 for (var index = 0; index < Constructors.Count; index++)
                 {
@@ -584,15 +587,22 @@ namespace CodeGeneration
         [PublicAPI]
         public sealed class ClassTemplate : TypeTemplate
         {
-            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a class.");
-
+            public override IReadOnlyList<Token> Values
+            {
+                get => base.Values;
+                set => throw new Exception($"{nameof(Values)} cannot be used within a class.");
+            }
             protected override Token MemberType => Literal("class");
         }
 
         [PublicAPI]
         public sealed class StructTemplate : TypeTemplate
         {
-            public override IReadOnlyList<Token> Values => throw new Exception($"{nameof(Values)} cannot be used within a struct.");
+            public override IReadOnlyList<Token> Values
+            {
+                get => base.Values;
+                set => throw new Exception($"{nameof(Values)} cannot be used within a struct.");
+            }
 
             protected override Token MemberType => Literal("struct");
         }
@@ -600,10 +610,29 @@ namespace CodeGeneration
         [PublicAPI]
         public sealed class EnumTemplate : TypeTemplate
         {
-            public override IReadOnlyList<ConstructorTemplate> Constructors => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
-            public override IReadOnlyList<FieldTemplate> Fields => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
-            public override IReadOnlyList<MethodTemplate> Methods => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
-            public override IReadOnlyList<PropertyTemplate> Properties => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
+            public override IReadOnlyList<ConstructorTemplate> Constructors
+            {
+                get => base.Constructors;
+                set => throw new Exception($"{nameof(Constructors)} cannot be used within an enum.");
+            }
+            
+            public override IReadOnlyList<FieldTemplate> Fields
+            {
+                get => base.Fields;
+                set => throw new Exception($"{nameof(Fields)} cannot be used within an enum.");
+            }
+            
+            public override IReadOnlyList<MethodTemplate> Methods
+            {
+                get => base.Methods;
+                set => throw new Exception($"{nameof(Methods)} cannot be used within an enum.");
+            }
+            
+            public override IReadOnlyList<PropertyTemplate> Properties
+            {
+                get => base.Properties;
+                set => throw new Exception($"{nameof(Properties)} cannot be used within an enum.");
+            }
 
             protected override Token MemberType => Literal("enum");
         }
