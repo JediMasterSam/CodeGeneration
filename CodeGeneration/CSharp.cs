@@ -296,10 +296,10 @@ namespace CodeGeneration
             public string Name { get; set; }
         }
 
-        //TODO add attributes
         public abstract class Member
         {
             public Token Accessibility { get; set; }
+            public IReadOnlyList<Token> Attributes { get; set; } = Array.Empty<Token>();
             public IReadOnlyList<Token> Modifiers { get; set; } = Array.Empty<Token>();
             public string Name { get; set; }
 
@@ -325,7 +325,20 @@ namespace CodeGeneration
             {
                 Validate(Name, nameof(Name), location);
                 Validate(Accessibility, nameof(Accessibility), location);
+                Validate(Attributes, nameof(Attributes), location);
                 Validate(Modifiers, nameof(Modifiers), location);
+            }
+
+            internal Token GroupWithAttributes(Token token)
+            {
+                var attributes = new Token[Attributes.Count];
+
+                for (var index = 0; index < attributes.Length; index++)
+                {
+                    attributes[index] = Brackets(Attributes[index]);
+                }
+
+                return Group(Group(attributes), token);
             }
 
             protected void Validate<T>(T value, string name, string location) where T : class
@@ -393,7 +406,7 @@ namespace CodeGeneration
 
             internal override Token ToToken()
             {
-                return Statement(base.ToToken());
+                return GroupWithAttributes(Statement(base.ToToken()));
             }
 
             internal override void Validate(string location = "tokenization")
@@ -419,9 +432,18 @@ namespace CodeGeneration
                 }
 
                 var token = base.ToToken();
-                var accessors = new[] { Accessor.ToToken(Get, "get"), Accessor.ToToken(Set, "set")};
+                var accessors = new[] { Accessor.ToToken(Get, "get"), Accessor.ToToken(Set, "set") };
 
-                return Get?.Body != null || Set?.Body != null ? Block(token, accessors) : Sentence(token, Braces(Sentence(accessors)));
+                if (Get?.Body != null || Set?.Body != null)
+                {
+                    token = Block(token, accessors);
+                }
+                else
+                {
+                    token = Sentence(token, Braces(Sentence(accessors)));
+                }
+
+                return GroupWithAttributes(token);
             }
 
             internal override void Validate(string location = "tokenization")
@@ -430,7 +452,7 @@ namespace CodeGeneration
                 Validate(PropertyType, nameof(PropertyType), location);
             }
         }
-        
+
         //TODO add base constructor
         public sealed class Constructor : MethodBase
         {
@@ -438,7 +460,7 @@ namespace CodeGeneration
 
             internal override Token ToToken()
             {
-                return Block(Sequence(base.ToToken(), Parentheses(List(Parameters))), Body);
+                return GroupWithAttributes(Block(Sequence(base.ToToken(), Parentheses(List(Parameters))), Body));
             }
         }
 
@@ -450,7 +472,7 @@ namespace CodeGeneration
 
             internal override Token ToToken()
             {
-                return Block(Sentence(Sequence(base.ToToken(), GetGenericParameters(), Parentheses(List(Parameters))), GetGenericConstraints()), Body);
+                return GroupWithAttributes(Block(Sentence(Sequence(base.ToToken(), GetGenericParameters(), Parentheses(List(Parameters))), GetGenericConstraints()), Body));
             }
 
             internal override void Validate(string location = "tokenization")
@@ -499,7 +521,7 @@ namespace CodeGeneration
                 var @namespace = Sentence(Literal("namespace"), Literal(Namespace));
                 var token = imports.Length != 0 ? Lines(Lines(imports), @namespace) : @namespace;
 
-                return Block(token, new[] { Block(Sentence(Sequence(base.ToToken(), GetGenericConstraints()), GetGenericConstraints()), members) });
+                return Block(token, new[] { GroupWithAttributes(Block(Sentence(Sequence(base.ToToken(), GetGenericConstraints()), GetGenericConstraints()), members)) });
             }
 
             internal override void Validate(string location = "tokenization")

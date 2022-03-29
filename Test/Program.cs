@@ -9,6 +9,8 @@ namespace Test
     {
         public static void Main()
         {
+            // Console.WriteLine(Block(Block(Block(Group("a", "b")))));
+            // return;
             var a = Literal("a");
             var b = Literal("b");
             var c = Literal("c");
@@ -16,7 +18,8 @@ namespace Test
 
             var foobar = new Class
             {
-                Imports = new []{"System", "System.Collections"},
+                Attributes = new[] { Literal("Foobar") },
+                Imports = new[] { "System", "System.Collections" },
                 Accessibility = Public(),
                 Name = "Foobar",
                 Namespace = "Test",
@@ -24,6 +27,7 @@ namespace Test
                 {
                     new Field
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Private(),
                         Name = "_name",
                         FieldType = Type<string>()
@@ -33,6 +37,7 @@ namespace Test
                 {
                     new Property
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Name",
                         PropertyType = Type<string>(),
@@ -55,6 +60,7 @@ namespace Test
                 {
                     new Method
                     {
+                        Attributes = new[] { Literal("Foobar") },
                         Accessibility = Public(),
                         Name = "Foobar",
                         Modifiers = new[] { Static() },
