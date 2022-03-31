@@ -541,7 +541,7 @@ namespace CodeGeneration
                 {
                     for (var index = 0; index < members.Length; index++)
                     {
-                        members[index] = index != members.Length - 1 ? Element(Values[index]) : Values[index];
+                        members[index] = index != members.Length - 1 ? Element(Values[index]) : Sequence(Values[index]);
                     }
                 }
 
